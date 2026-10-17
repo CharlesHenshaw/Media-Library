@@ -28,6 +28,14 @@ return [
         'key' => env('RESEND_KEY'),
     ],
 
+    'tmdb' => [
+        'token' => env('TMDB_TOKEN'),
+    ],
+
+    'rawg' => [
+        'key' => env('RAWG_KEY'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

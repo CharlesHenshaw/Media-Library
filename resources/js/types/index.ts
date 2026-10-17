@@ -17,6 +17,7 @@ export interface NavItem {
 }
 
 export interface SharedData {
+    flash: { success: string | null };
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
