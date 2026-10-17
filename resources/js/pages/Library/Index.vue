@@ -2,13 +2,15 @@
 import FlashMessage from '@/components/FlashMessage.vue';
 import LibraryEntryDialog from '@/components/LibraryEntryDialog.vue';
 import MediaCard from '@/components/MediaCard.vue';
+import PageHeading from '@/components/PageHeading.vue';
+import ShelfGrid from '@/components/ShelfGrid.vue';
+import TabNav from '@/components/TabNav.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
-import { mediaTypeLabels, statusLabels, type EntryStatus, type LibraryEntry, type MediaType } from '@/types/media';
+import { mediaTypeLabels, type EntryStatus, type LibraryEntry, type MediaType } from '@/types/media';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Library, Plus } from 'lucide-vue-next';
+import { LibraryBig, Plus } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type Sort = 'recent' | 'rating' | 'title';
@@ -20,12 +22,18 @@ const props = defineProps<{
         meta: { current_page: number; last_page: number; total: number };
     };
     counts: Partial<Record<MediaType, number>>;
+    statusCounts: Partial<Record<EntryStatus, number>>;
     filters: { type: MediaType | null; status: EntryStatus | null; sort: Sort };
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Library', href: '/library' }];
 
 const totalCount = computed(() => Object.values(props.counts).reduce((sum, n) => sum + (n ?? 0), 0));
+
+const typeTabs = computed(() => [
+    { value: null, label: 'All shelves', count: totalCount.value },
+    ...(Object.entries(mediaTypeLabels) as [MediaType, string][]).map(([value, label]) => ({ value, label, count: props.counts[value] ?? 0 })),
+]);
 
 const applyFilters = (changes: Partial<typeof props.filters>) => {
     const filters = { ...props.filters, ...changes };
@@ -48,69 +56,71 @@ const select = (entry: LibraryEntry) => {
     dialogOpen.value = true;
 };
 
-const chipClass = (active: boolean) =>
-    cn(
-        'rounded-full border px-3 py-1 text-sm transition-colors',
-        active ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground',
-    );
+const selectClass = 'h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 </script>
 
 <template>
     <Head title="Library" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-6 p-4">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div class="flex flex-wrap gap-2">
-                    <button type="button" :class="chipClass(!filters.type)" @click="applyFilters({ type: null })">All · {{ totalCount }}</button>
-                    <button
-                        v-for="(label, value) in mediaTypeLabels"
-                        :key="value"
-                        type="button"
-                        :class="chipClass(filters.type === value)"
-                        @click="applyFilters({ type: value })"
-                    >
-                        {{ label }} · {{ counts[value] ?? 0 }}
-                    </button>
-                </div>
+        <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-8">
+            <PageHeading eyebrow="Your collection" title="The Library">
+                <template v-if="totalCount">
+                    {{ totalCount }} {{ totalCount === 1 ? 'work' : 'works' }} catalogued · {{ statusCounts.finished ?? 0 }} finished ·
+                    {{ statusCounts.dnf ?? 0 }} set aside
+                </template>
+                <template v-else>Nothing catalogued yet.</template>
 
-                <div class="flex flex-wrap items-center gap-2">
+                <template #actions>
+                    <Button as-child>
+                        <Link :href="route('search')"><Plus /> Add to library</Link>
+                    </Button>
+                </template>
+            </PageHeading>
+
+            <div class="flex flex-col gap-4 border-b lg:flex-row lg:items-end lg:justify-between">
+                <TabNav :items="typeTabs" :active="filters.type" @select="applyFilters({ type: $event })" />
+
+                <div class="flex flex-wrap items-center gap-2 pb-3">
                     <select
                         :value="filters.status ?? ''"
                         aria-label="Filter by status"
-                        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        :class="selectClass"
                         @change="applyFilters({ status: (($event.target as HTMLSelectElement).value || null) as EntryStatus | null })"
                     >
                         <option value="">Any status</option>
-                        <option v-for="(label, value) in statusLabels" :key="value" :value="value">{{ label }}</option>
+                        <option value="finished">Finished</option>
+                        <option value="dnf">Did not finish</option>
                     </select>
                     <select
                         :value="filters.sort"
                         aria-label="Sort by"
-                        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        :class="selectClass"
                         @change="applyFilters({ sort: ($event.target as HTMLSelectElement).value as Sort })"
                     >
-                        <option value="recent">Recently updated</option>
+                        <option value="recent">Recently shelved</option>
                         <option value="rating">Highest rated</option>
-                        <option value="title">Title A–Z</option>
+                        <option value="title">Title, A–Z</option>
                     </select>
-                    <Button as-child>
-                        <Link :href="route('search')"><Plus /> Add</Link>
-                    </Button>
                 </div>
             </div>
 
-            <div v-if="entries.data.length" class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <ShelfGrid v-if="entries.data.length">
                 <MediaCard v-for="entry in entries.data" :key="entry.id" :media="entry.media" :entry="entry" @select="select(entry)" />
-            </div>
+            </ShelfGrid>
 
-            <div v-else class="flex flex-col items-center gap-3 py-24 text-center text-muted-foreground">
-                <Library class="size-10" />
-                <p v-if="totalCount === 0" class="text-sm">Your library is empty. Search for something you've finished (or given up on) to get started.</p>
-                <p v-else class="text-sm">Nothing matches these filters.</p>
-                <Button v-if="totalCount === 0" as-child variant="outline">
-                    <Link :href="route('search')">Search media</Link>
-                </Button>
+            <div v-else class="flex flex-col items-center gap-4 py-24 text-center">
+                <LibraryBig class="size-10 text-brass" stroke-width="1.5" />
+                <template v-if="totalCount === 0">
+                    <p class="font-serif text-2xl">The shelves are bare.</p>
+                    <p class="max-w-sm text-sm text-muted-foreground">
+                        Search the catalogue for something you've finished, or something you gave up on, and it'll be shelved here.
+                    </p>
+                    <Button as-child variant="outline" class="mt-2">
+                        <Link :href="route('search')">Search the catalogue</Link>
+                    </Button>
+                </template>
+                <p v-else class="font-serif text-xl text-muted-foreground">Nothing on this shelf matches.</p>
             </div>
 
             <nav v-if="entries.meta.last_page > 1" class="flex items-center justify-center gap-4 text-sm">
@@ -118,7 +128,7 @@ const chipClass = (active: boolean) =>
                     <Link v-if="entries.links.prev" :href="entries.links.prev" preserve-scroll>Previous</Link>
                     <span v-else>Previous</span>
                 </Button>
-                <span class="text-muted-foreground">Page {{ entries.meta.current_page }} of {{ entries.meta.last_page }}</span>
+                <span class="font-serif italic text-muted-foreground">Page {{ entries.meta.current_page }} of {{ entries.meta.last_page }}</span>
                 <Button variant="outline" size="sm" :disabled="!entries.links.next" as-child>
                     <Link v-if="entries.links.next" :href="entries.links.next" preserve-scroll>Next</Link>
                     <span v-else>Next</span>

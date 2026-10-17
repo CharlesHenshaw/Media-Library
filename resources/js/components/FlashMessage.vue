@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { type SharedData } from '@/types';
 import { usePage } from '@inertiajs/vue3';
-import { CheckCircle2 } from 'lucide-vue-next';
+import { Stamp } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
 const page = usePage<SharedData>();
@@ -30,9 +30,9 @@ watch(
         <div
             v-if="message"
             role="status"
-            class="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg border bg-background px-4 py-3 text-sm shadow-lg"
+            class="fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-3 rounded-sm border bg-card px-4 py-3 font-serif text-sm shadow-[0_10px_30px_-8px_hsl(24_40%_10%/0.35)]"
         >
-            <CheckCircle2 class="size-4 text-emerald-600" />
+            <Stamp class="size-4 shrink-0 text-brass" />
             {{ message }}
         </div>
     </Transition>

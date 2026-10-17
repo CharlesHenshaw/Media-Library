@@ -45,7 +45,7 @@ const filled = (value: number) => value <= (hovered.value ?? props.modelValue ??
                 :class="
                     cn(
                         size === 'lg' ? 'size-7' : 'size-3.5',
-                        filled(value) ? 'fill-amber-400 text-amber-400' : 'fill-transparent text-muted-foreground/40',
+                        filled(value) ? 'fill-brass text-brass' : 'fill-transparent text-muted-foreground/35',
                     )
                 "
             />

@@ -38,6 +38,12 @@ composer run dev
 
 Visit http://localhost:8000, register, and head to **Search**.
 
+To try it with a full set of shelves, seed a demo account (needs the API keys above). It creates `demo@example.com` with 16 real films, shows, games and books:
+
+```bash
+php artisan db:seed --class=DemoLibrarySeeder
+```
+
 ## Tests
 
 ```bash

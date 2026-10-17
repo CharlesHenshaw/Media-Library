@@ -2,9 +2,10 @@
 import FlashMessage from '@/components/FlashMessage.vue';
 import LibraryEntryDialog from '@/components/LibraryEntryDialog.vue';
 import MediaCard from '@/components/MediaCard.vue';
-import { Input } from '@/components/ui/input';
+import PageHeading from '@/components/PageHeading.vue';
+import ShelfGrid from '@/components/ShelfGrid.vue';
+import TabNav from '@/components/TabNav.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { mediaTypeLabels, type LibraryEntry, type Media, type MediaType } from '@/types/media';
 import { Head, router } from '@inertiajs/vue3';
@@ -20,6 +21,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Search', href: '/search' }];
+
+const typeTabs = (Object.entries(mediaTypeLabels) as [MediaType, string][]).map(([value, label]) => ({ value, label }));
 
 const query = ref(props.q);
 const loading = ref(false);
@@ -49,46 +52,51 @@ const select = (result: { media: Media; entry: LibraryEntry | null }) => {
     dialogOpen.value = true;
 };
 
-const placeholder = computed(() => `Search ${mediaTypeLabels[props.type].toLowerCase()}…`);
+const placeholder = computed(
+    () =>
+        ({
+            film: 'A film title, e.g. Spirited Away',
+            tv: 'A show, e.g. Severance',
+            game: 'A game, e.g. Outer Wilds',
+            book: 'A title or author, e.g. Piranesi',
+        })[props.type],
+);
 </script>
 
 <template>
     <Head title="Search" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-6 p-4">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div class="inline-flex gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-neutral-800">
-                    <button
-                        v-for="(label, value) in mediaTypeLabels"
-                        :key="value"
-                        type="button"
-                        :class="
-                            cn(
-                                'rounded-md px-3.5 py-1.5 text-sm transition-colors',
-                                type === value
-                                    ? 'bg-white shadow-sm dark:bg-neutral-700 dark:text-neutral-100'
-                                    : 'text-neutral-500 hover:bg-neutral-200/60 dark:text-neutral-400 dark:hover:bg-neutral-700/60',
-                            )
-                        "
-                        @click="runSearch(value)"
-                    >
-                        {{ label }}
-                    </button>
+        <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-8">
+            <PageHeading eyebrow="The catalogue" title="Find something to shelve">
+                Search films, TV, games and books, then choose one to add it to your library.
+            </PageHeading>
+
+            <div class="flex flex-col gap-5">
+                <div class="border-b">
+                    <TabNav :items="typeTabs" :active="type" @select="runSearch($event)" />
                 </div>
 
-                <form class="relative flex-1" @submit.prevent="runSearch()">
-                    <Search class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input v-model="query" type="search" :placeholder="placeholder" class="pl-9" autofocus @input="debouncedSearch" />
-                    <Loader2 v-if="loading" class="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                <form class="relative max-w-2xl" role="search" @submit.prevent="runSearch()">
+                    <Search class="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                        v-model="query"
+                        type="search"
+                        :placeholder="placeholder"
+                        :aria-label="`Search ${mediaTypeLabels[type].toLowerCase()}`"
+                        autofocus
+                        class="h-14 w-full rounded-md border border-input bg-card pl-12 pr-12 font-serif text-lg shadow-inner placeholder:text-muted-foreground/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        @input="debouncedSearch"
+                    />
+                    <Loader2 v-if="loading" class="absolute right-4 top-1/2 size-5 -translate-y-1/2 animate-spin text-muted-foreground" />
                 </form>
             </div>
 
-            <p v-if="error" class="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <p v-if="error" class="rounded-sm border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {{ error }}
             </p>
 
-            <div v-if="results.length" class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <ShelfGrid v-if="results.length">
                 <MediaCard
                     v-for="result in results"
                     :key="result.media.external_id"
@@ -96,14 +104,10 @@ const placeholder = computed(() => `Search ${mediaTypeLabels[props.type].toLower
                     :entry="result.entry"
                     @select="select(result)"
                 />
-            </div>
+            </ShelfGrid>
 
-            <p v-else-if="q.length >= 2 && !error && !loading" class="py-16 text-center text-sm text-muted-foreground">
-                No {{ mediaTypeLabels[type].toLowerCase() }} found for “{{ q }}”.
-            </p>
-
-            <p v-else-if="!q" class="py-16 text-center text-sm text-muted-foreground">
-                Search for something you've watched, played or read, then click it to add it to your library.
+            <p v-else-if="q.length >= 2 && !error && !loading" class="py-16 text-center font-serif text-xl text-muted-foreground">
+                Nothing in the catalogue for “{{ q }}”.
             </p>
         </div>
 

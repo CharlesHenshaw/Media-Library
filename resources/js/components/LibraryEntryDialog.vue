@@ -4,11 +4,10 @@ import StarRating from '@/components/StarRating.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { statusLabels, type EntryStatus, type LibraryEntry, type Media } from '@/types/media';
+import { mediaTypeLabels, statusLabels, type EntryStatus, type LibraryEntry, type Media } from '@/types/media';
 import { router, useForm } from '@inertiajs/vue3';
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 
 const props = defineProps<{
     open: boolean;
@@ -56,55 +55,69 @@ const remove = () => {
 };
 
 const today = new Date().toISOString().slice(0, 10);
+
+// Singular form of the type label for the card's classification line, e.g. "Films" -> "Film".
+const classification = computed(() => (props.media ? mediaTypeLabels[props.media.type].replace(/s$/, '') : ''));
+
+const dateLabel = computed(() => (form.status === 'dnf' ? 'Set aside on' : 'Finished on'));
+
+const stampClass = (status: EntryStatus) =>
+    cn(
+        'flex-1 rounded-sm border-2 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
+        form.status !== status && 'border-dashed border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground',
+        form.status === status && status === 'finished' && '-rotate-2 border-[hsl(158_45%_32%)] bg-[hsl(158_45%_32%/0.08)] text-[hsl(158_45%_32%)] dark:border-[hsl(158_40%_50%)] dark:text-[hsl(158_40%_60%)]',
+        form.status === status && status === 'dnf' && 'rotate-2 border-oxblood bg-oxblood/5 text-oxblood',
+    );
 </script>
 
 <template>
     <Dialog :open="open" @update:open="emit('update:open', $event)">
-        <DialogContent v-if="media" class="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>{{ entry ? 'Edit' : 'Add to library' }}</DialogTitle>
-                <DialogDescription>
-                    {{ media.title }}<span v-if="media.year"> ({{ media.year }})</span>
-                </DialogDescription>
+        <DialogContent v-if="media" class="catalogue-card gap-0 overflow-hidden rounded-sm bg-card p-0 shadow-[0_24px_60px_-12px_hsl(24_40%_8%/0.55)] sm:max-w-xl sm:rounded-sm">
+            <DialogHeader class="h-[4.25rem] justify-center space-y-0.5 px-6 pr-12 text-left">
+                <p class="catalogue-label">
+                    {{ classification }}<template v-if="media.year"> · {{ media.year }}</template>
+                    <template v-if="entry"> · In your library</template>
+                </p>
+                <DialogTitle class="truncate font-serif text-xl font-medium leading-tight">{{ media.title }}</DialogTitle>
+                <DialogDescription v-if="media.creator" class="sr-only">by {{ media.creator }}</DialogDescription>
             </DialogHeader>
 
-            <form id="library-entry-form" class="flex gap-4" @submit.prevent="submit">
-                <img v-if="media.cover_url" :src="media.cover_url" alt="" class="hidden aspect-[2/3] w-24 shrink-0 rounded-md object-cover sm:block" />
+            <form id="library-entry-form" class="flex gap-6 px-6 pb-2 pt-6" @submit.prevent="submit">
+                <div class="hidden w-28 shrink-0 sm:block">
+                    <div class="relative aspect-[2/3] overflow-hidden rounded-[3px] bg-muted shadow-[0_8px_16px_-6px_hsl(24_40%_10%/0.5)]">
+                        <img v-if="media.cover_url" :src="media.cover_url" alt="" class="h-full w-full object-cover" />
+                        <div class="cover-sheen absolute inset-0" />
+                    </div>
+                    <p v-if="media.creator" class="mt-2 font-serif text-xs italic text-muted-foreground">{{ media.creator }}</p>
+                </div>
 
-                <div class="flex flex-1 flex-col gap-4">
-                    <div class="grid gap-2">
-                        <Label>Status</Label>
-                        <div class="inline-flex gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-neutral-800">
+                <div class="flex flex-1 flex-col gap-5">
+                    <fieldset class="grid gap-2">
+                        <legend class="catalogue-label mb-2">Status</legend>
+                        <div class="flex gap-3">
                             <button
                                 v-for="status in ['finished', 'dnf'] as const"
                                 :key="status"
                                 type="button"
                                 :aria-pressed="form.status === status"
-                                :class="
-                                    cn(
-                                        'flex-1 rounded-md px-3 py-1.5 text-sm transition-colors',
-                                        form.status === status
-                                            ? 'bg-white shadow-sm dark:bg-neutral-700 dark:text-neutral-100'
-                                            : 'text-neutral-500 hover:bg-neutral-200/60 dark:text-neutral-400 dark:hover:bg-neutral-700/60',
-                                    )
-                                "
+                                :class="stampClass(status)"
                                 @click="form.status = status"
                             >
-                                {{ statusLabels[status] }}
+                                {{ status === 'dnf' ? 'Did not finish' : statusLabels[status] }}
                             </button>
                         </div>
                         <InputError :message="form.errors.status" />
-                    </div>
+                    </fieldset>
 
-                    <div class="grid gap-2">
-                        <Label>Rating <span class="font-normal text-muted-foreground">(optional)</span></Label>
+                    <fieldset class="grid gap-2">
+                        <legend class="catalogue-label mb-2">Your rating</legend>
                         <StarRating v-model="form.rating" size="lg" />
                         <InputError :message="form.errors.rating" />
-                    </div>
+                    </fieldset>
 
                     <div class="grid gap-2">
-                        <Label for="finished_on">Date <span class="font-normal text-muted-foreground">(optional)</span></Label>
-                        <Input id="finished_on" v-model="form.finished_on" type="date" :max="today" />
+                        <label for="finished_on" class="catalogue-label">{{ dateLabel }} <span class="normal-case tracking-normal">(optional)</span></label>
+                        <Input id="finished_on" v-model="form.finished_on" type="date" :max="today" class="w-auto bg-card/80" />
                         <InputError :message="form.errors.finished_on" />
                     </div>
 
@@ -112,11 +125,13 @@ const today = new Date().toISOString().slice(0, 10);
                 </div>
             </form>
 
-            <DialogFooter class="gap-2 sm:justify-between">
-                <Button v-if="entry" type="button" variant="ghost" class="text-destructive hover:text-destructive" @click="remove">Remove</Button>
+            <DialogFooter class="gap-2 px-6 pb-5 pt-4 sm:justify-between">
+                <Button v-if="entry" type="button" variant="ghost" class="text-destructive hover:bg-destructive/10 hover:text-destructive" @click="remove">
+                    Remove from library
+                </Button>
                 <span v-else />
                 <Button type="submit" form="library-entry-form" :disabled="form.processing">
-                    {{ entry ? 'Save' : 'Add' }}
+                    {{ entry ? 'Save changes' : 'Add to shelves' }}
                 </Button>
             </DialogFooter>
         </DialogContent>

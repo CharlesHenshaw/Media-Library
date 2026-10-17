@@ -45,9 +45,15 @@ class LibraryEntryController extends Controller
             ->groupBy('media_items.type')
             ->pluck('total', 'type');
 
+        $statusCounts = $request->user()->libraryEntries()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
         return Inertia::render('Library/Index', [
             'entries' => LibraryEntryResource::collection($entries),
             'counts' => $counts,
+            'statusCounts' => $statusCounts,
             'filters' => [
                 'type' => $type,
                 'status' => $status,

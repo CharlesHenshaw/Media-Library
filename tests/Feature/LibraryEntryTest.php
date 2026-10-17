@@ -185,7 +185,9 @@ class LibraryEntryTest extends TestCase
                 ->where('entries.data.0.media.type', 'book')
                 ->where('entries.data.0.status', 'dnf')
                 ->where('counts.book', 2)
-                ->where('counts.game', 1));
+                ->where('counts.game', 1)
+                ->where('statusCounts.finished', 1)
+                ->where('statusCounts.dnf', 2));
     }
 
     public function test_library_can_be_sorted_by_rating_and_title()
